@@ -39,6 +39,18 @@ public class TCPSocketImpl extends TCPSocket {
 		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
 		retransmit=new AtomicBoolean(false);
 	}
+	public TCPSocketImpl(String ip,int port,int portToReceiveFrom){
+		super(ip, port);
+		mPort=port;
+		mIp=InetAddress.getByName(ip);
+		retransmissionTimer=new Timer("Timer");
+		segmentReceiver=new SegmentReceiver(this);
+		socket=new EnhancedDatagramSocket(portToReceiveFrom);//haminjoori
+		tcpHeader=new TCPHeader();
+		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
+		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
+		retransmit=new AtomicBoolean(false);
+	}
 	public void setSocket(EnhancedDatagramSocket s){
 		socket=s;
 	}
