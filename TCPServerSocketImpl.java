@@ -1,5 +1,6 @@
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.io.IOException;
 public class TCPServerSocketImpl extends TCPServerSocket {
 	EnhancedDatagramSocket socket;
     public TCPServerSocketImpl(int port) throws Exception {
@@ -19,11 +20,22 @@ public class TCPServerSocketImpl extends TCPServerSocket {
 				continue;
 			//getting seq num
 			tcpHeader.setSYN();
-		tcpHeader.setSEQ(baseSeqNum.intValue());
-		byte[] readydata=tcpHeader.attachTo(new byte[]{});
-		DatagramPacket syncPacket=new DatagramPacket(readydata,readydata.length,mIp,mPort);
-		socket.send(syncPacket);
-			
+			//tcpHeader.setSEQ(baseSeqNum.intValue());
+			byte[] readydata=tcpHeader.attachTo(new byte[]{});
+			DatagramPacket syncPacket=new DatagramPacket(readydata,readydata.length,synPacket.getAddress(),synPacket.getPort());
+			try{
+				socket.send(syncPacket);
+			}catch(IOException e){
+				e.printStackTrace();
+			}
+			byte[] synAckData=new byte[9];
+			DatagramPacket synAckPacket=new DatagramPacket(synAckData,synAckData.length);
+			socket.receive(synAckPacket);
+			tcpHeader.unSetAll();
+			tcpHeader.extractFrom(synPacket.getData());
+			if(!tcpHeader.isACK())
+				continue;
+			//constructing socket 
 		}
     }
 
