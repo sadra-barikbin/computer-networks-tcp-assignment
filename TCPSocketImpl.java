@@ -19,6 +19,7 @@ public class TCPSocketImpl extends TCPSocket {
 	private int firstSegmentNumWaitingToGetAck;
 	private int SSThreshold; 
 	private AtomicInteger baseSeqNum;
+	private AtomicInteger receiveBaseSeqNum;
 	private AtomicInteger nextToBeSentSeqNum;
 	public LinkedList<seqNumPlusPacket> inFlightSegments;
 	private FileInputStream file;
@@ -38,6 +39,7 @@ public class TCPSocketImpl extends TCPSocket {
 		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
 		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
 		retransmit=new AtomicBoolean(false);
+		setupConnection();
 	}
 	public TCPSocketImpl(String ip,int port,int portToReceiveFrom){
 		super(ip, port);
@@ -47,14 +49,14 @@ public class TCPSocketImpl extends TCPSocket {
 		segmentReceiver=new SegmentReceiver(this);
 		socket=new EnhancedDatagramSocket(portToReceiveFrom);//haminjoori
 		tcpHeader=new TCPHeader();
-		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
-		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
 		retransmit=new AtomicBoolean(false);
 	}
 	public void setSocket(EnhancedDatagramSocket s){
 		socket=s;
 	}
 	private void setupConnection() throws ConnectionRefusedException{
+		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
+		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
 		//synchronize packet
 		tcpHeader.setSYN();
 		tcpHeader.setSEQ(baseSeqNum.intValue());
@@ -68,18 +70,26 @@ public class TCPSocketImpl extends TCPSocket {
 		//synchronize ack packet
 		byte[] synAckData=new byte[9];
 		DatagramPacket synAckPacket=new DatagramPacket(synAckData,synAckData.length);
-		try{
-			socket.receive(synAckPacket);
-		}catch(IOException e){
-			e.printStackTrace();
+		while(true){
+			try{
+				socket.receive(synAckPacket);
+				if(synAckPacket.getPort()!=mPort || !synAckPacket.getAddress().equals(mIp))
+					continue;
+				else
+					break;
+			}catch(IOException e){
+				e.printStackTrace();
+			}
 		}
 		tcpHeader.extractFrom(synAckPacket.getData());
 		if(!(tcpHeader.isACK()&& tcpHeader.isSYN() ))
 			throw new ConnectionRefusedException();
+		receiveBaseSeqNum=new AtomicInteger(tcpHeader.getSEQ());
 		// ack packet
 		tcpHeader.unSetAll();
 		tcpHeader.setACK();
 		tcpHeader.setSEQ(baseSeqNum.intValue());
+		tcpHeader.setAckNum(baseSeqNum.intValue()+1);
 		byte[] finalAckData=tcpHeader.attachTo(new byte[]{});
 		DatagramPacket finalAckPacket=new DatagramPacket(finalAckData,finalAckData.length,mIp,mPort);
 		try{
@@ -90,7 +100,6 @@ public class TCPSocketImpl extends TCPSocket {
 	}
     
     public void send(String pathToFile) throws Exception {
-		setupConnection();
 		this.file=new FileInputStream(pathToFile);
 		windowSize=1;
 		inFlightSegments=new LinkedList<>();

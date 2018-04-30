@@ -47,6 +47,9 @@ public class TCPHeader{
 	public int getAckNum(){
 		return acknowledgeNumber;
 	}
+	public void setAckNum(int val){
+		acknowledgeNumber=val;
+	}
 	public boolean isACK(){
 		return (Flags & TCPHeader.ACK)==0?false:true;
 	}
