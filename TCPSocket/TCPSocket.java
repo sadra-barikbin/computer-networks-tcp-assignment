@@ -1,3 +1,4 @@
+package TCPSocket;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,7 +9,7 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-protected abstract class TCPSocket implements CongestionWindowPlotter {
+public abstract class TCPSocket implements CongestionWindowPlotter {
     public TCPSocket(String ip, int port) throws Exception {}
 
     public abstract void send(String pathToFile) throws Exception;

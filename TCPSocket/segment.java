@@ -1,5 +1,5 @@
 package TCPSocket;
-protected class segment {
+class segment {
 	public byte[] data;
 	TCPHeader tcpHeader;
 	public segment(){

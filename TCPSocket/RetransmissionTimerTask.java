@@ -1,6 +1,6 @@
 package TCPSocket;
 import java.util.TimerTask;
-protected class RetransmissionTimerTask extends TimerTask{
+class RetransmissionTimerTask extends TimerTask{
 	@Override
 	public void run(){
 		//loop over linkedHashMap and resend all

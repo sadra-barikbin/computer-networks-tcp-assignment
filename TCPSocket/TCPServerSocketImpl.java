@@ -3,22 +3,31 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Timer;
+import java.util.TimerTask;
 public class TCPServerSocketImpl extends TCPServerSocket {
-	private TCPSocketImpl socket;
+	private EnhancedDatagramSocket socket;
 	int portToListen;
 	int receiveSeqNum;
 	int sendSeqNum;
 	int senderPort;
+	AtomicBoolean listenTimeOut;
 	InetAddress senderIp;
     public TCPServerSocketImpl(int port) throws Exception {
         super(port);
+		listenTimeOut=new AtomicBoolean(false);
+		socket=new EnhancedDatagramSocket(port);
 		portToListen=port;
+		new Timer("for listen timeout").schedule(new simpleTimeOutTimerTask(listenTimeOut),3000);
     }
 
     @Override
     public TCPSocket accept() throws Exception {
 		TCPHeader tcpHeader=new TCPHeader();
-		while(true){
+		TCPSocketImpl client_sock=null;
+		while(!listenTimeOut.get()){
 			//receiving SYN
 			byte[] synData=new byte[9];
 			DatagramPacket synPacket=new DatagramPacket(synData,synData.length);
@@ -26,7 +35,7 @@ public class TCPServerSocketImpl extends TCPServerSocket {
 			tcpHeader.extractFrom(synPacket.getData());
 			if(!tcpHeader.isSYN())
 				continue;
-			receiveSeqNum=tcpHeader.getSeqNum();
+			receiveSeqNum=tcpHeader.getSEQ();
 			senderIp=synPacket.getAddress();
 			senderPort=synPacket.getPort();
 			//sending SYN ACK
@@ -39,7 +48,7 @@ public class TCPServerSocketImpl extends TCPServerSocket {
 			byte[] readydata=tcpHeader.attachTo(new byte[]{});
 			DatagramPacket synAckPacket=new DatagramPacket(readydata,readydata.length,synPacket.getAddress(),synPacket.getPort());
 			try{
-				socket.send(synAckcPacket);
+				socket.send(synAckPacket);
 			}catch(IOException e){
 				e.printStackTrace();
 			}
@@ -49,7 +58,7 @@ public class TCPServerSocketImpl extends TCPServerSocket {
 			while(true){
 				try{
 					socket.receive(finalAckPacket);
-					if(finalAckPacket.getPort()!=senderPort || !finalAckPacket.getAddress.equals(senderIp))
+					if(finalAckPacket.getPort()!=senderPort || !finalAckPacket.getAddress().equals(senderIp))
 						continue;
 					else
 						break;
@@ -61,13 +70,17 @@ public class TCPServerSocketImpl extends TCPServerSocket {
 			tcpHeader.extractFrom(finalAckPacket.getData());
 			if(!tcpHeader.isACK())
 				continue;
-			TCPSocketImpl client_sock=new TCPSocketImpl(senderIp,senderPort,portToListen);
+			client_sock=new TCPSocketImpl(senderIp,senderPort,socket);
+			client_sock.setStartSeqForSend(sendSeqNum);
+			client_sock.setStartSeqForReceive(receiveSeqNum);
 			//setting seqnumber of client and my seqnumber 
 			break;
 		}
-		return new TCPSocketImpl();
+		if(client_sock==null)
+			throw new TimeOutException();
+		return client_sock;
     }
-
+	public static class TimeOutException extends Exception {}
     @Override
     public void close() throws Exception {
         throw new RuntimeException("Not implemented!");

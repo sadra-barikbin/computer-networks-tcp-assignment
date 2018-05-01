@@ -9,7 +9,7 @@ import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.Date;
 
-protected class EnhancedDatagramSocket extends DatagramSocket {
+class EnhancedDatagramSocket extends DatagramSocket {
     public EnhancedDatagramSocket(int port) throws SocketException {
         super(port);
         randomGenerator = new Random(System.currentTimeMillis());

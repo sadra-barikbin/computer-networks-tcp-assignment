@@ -1,7 +1,7 @@
 package TCPSocket;
 import java.net.DatagramPacket;
 import java.io.IOException;
-protected class SegmentReceiver {
+class SegmentReceiver {
 	private TCPSocketImpl tcpSocketImpl;
 	private TCPHeader tcpHeader;
 

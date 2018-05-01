@@ -3,7 +3,7 @@ import java.awt.*;
 import java.io.IOException;
 import java.util.Date;
 
-protected interface CongestionWindowPlotter {
+interface CongestionWindowPlotter {
     long getSSThreshold();
 
     long getWindowSize();

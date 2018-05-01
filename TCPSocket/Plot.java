@@ -27,7 +27,7 @@ import javax.imageio.ImageIO;
  *
  * @author Yuriy Guskov
  */
-protected class Plot {
+class Plot {
 
 	public enum Line { NONE, SOLID, DASHED };
 	public enum Marker { NONE, CIRCLE, SQUARE, DIAMOND, COLUMN, BAR };

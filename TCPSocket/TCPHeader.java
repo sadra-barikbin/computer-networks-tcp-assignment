@@ -1,6 +1,6 @@
 package TCPSocket;
 import java.nio.ByteBuffer;
-protected class TCPHeader{
+class TCPHeader{
 	public int sequenceNumber;
 	public int acknowledgeNumber;
 	public byte Flags;

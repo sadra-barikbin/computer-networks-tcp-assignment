@@ -13,21 +13,28 @@ import java.util.concurrent.Semaphore;
 import java.util.LinkedList;
 import java.io.IOException;
 public class TCPSocketImpl extends TCPSocket {
+	
+	/////congestion control///
+	private int SSThreshold; 
+	/////////////////////////
+	
 	private int mPort;
 	private InetAddress mIp;
 	private EnhancedDatagramSocket socket;
+	private FileInputStream file;
+	private TCPHeader tcpHeader;
+	
+	////for Go-Back-N //////////////
 	private int windowSize;
-	private int firstSegmentNumWaitingToGetAck;
-	private int SSThreshold; 
 	private AtomicInteger baseSeqNum;
 	private AtomicInteger receiveBaseSeqNum;
 	private AtomicInteger nextToBeSentSeqNum;
 	public LinkedList<seqNumPlusPacket> inFlightSegments;
-	private FileInputStream file;
+	public AtomicBoolean retransmit;
 	private Timer retransmissionTimer;
 	private SegmentReceiver segmentReceiver;
-	public AtomicBoolean retransmit;
-	private TCPHeader tcpHeader;
+	/////////////////////////
+	
 	
     public TCPSocketImpl(String ip, int port) throws Exception {
         super(ip, port);
@@ -35,26 +42,26 @@ public class TCPSocketImpl extends TCPSocket {
 		mIp=InetAddress.getByName(ip);
 		retransmissionTimer=new Timer("Timer");
 		segmentReceiver=new SegmentReceiver(this);
-		socket=new EnhancedDatagramSocket(1800);//haminjoori
+		socket=new EnhancedDatagramSocket(ThreadLocalRandom.current().nextInt(1025,65535));
 		tcpHeader=new TCPHeader();
 		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
 		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
 		retransmit=new AtomicBoolean(false);
 		setupConnection();
 	}
-	public TCPSocketImpl(String ip,int port,int portToReceiveFrom){
-		super(ip, port);
+	TCPSocketImpl(InetAddress ip,int port,EnhancedDatagramSocket ReceiveSocket)throws Exception{
+		super(ip.toString(),port );
 		mPort=port;
-		mIp=InetAddress.getByName(ip);
+		mIp=ip;
 		retransmissionTimer=new Timer("Timer");
 		segmentReceiver=new SegmentReceiver(this);
-		socket=new EnhancedDatagramSocket(portToReceiveFrom);//haminjoori
+		socket=ReceiveSocket;//haminjoori
 		tcpHeader=new TCPHeader();
 		retransmit=new AtomicBoolean(false);
 	}
-	public void setSocket(EnhancedDatagramSocket s){
+	/*public void setSocket(EnhancedDatagramSocket s){
 		socket=s;
-	}
+	}*/
 	private void setupConnection() throws ConnectionRefusedException{
 		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
 		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
@@ -99,7 +106,12 @@ public class TCPSocketImpl extends TCPSocket {
 			e.printStackTrace();
 		}
 	}
-    
+    void setStartSeqForSend(int val){
+		baseSeqNum.set(val);
+	}
+	void setStartSeqForReceive(int val){
+		receiveBaseSeqNum.set(val);
+	}
     public void send(String pathToFile) throws Exception {
 		this.file=new FileInputStream(pathToFile);
 		windowSize=1;

@@ -1,5 +1,5 @@
 package TCPSocket;
-protected abstract class TCPServerSocket {
+public abstract class TCPServerSocket {
     public TCPServerSocket(int port) throws Exception {}
 
     public abstract TCPSocket accept() throws Exception;
