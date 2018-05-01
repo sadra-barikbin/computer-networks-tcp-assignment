@@ -1,5 +1,6 @@
+package TCPSocket;
 import java.net.DatagramPacket;
-public class seqNumPlusPacket {
+protected class seqNumPlusPacket {
 	public Integer seqNum;
 	public DatagramPacket packet;
 	public seqNumPlusPacket(Integer seq,DatagramPacket p){

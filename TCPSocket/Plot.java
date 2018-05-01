@@ -1,3 +1,4 @@
+package TCPSocket;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -26,7 +27,7 @@ import javax.imageio.ImageIO;
  *
  * @author Yuriy Guskov
  */
-public class Plot {
+protected class Plot {
 
 	public enum Line { NONE, SOLID, DASHED };
 	public enum Marker { NONE, CIRCLE, SQUARE, DIAMOND, COLUMN, BAR };
