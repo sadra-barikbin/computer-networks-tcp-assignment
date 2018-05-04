@@ -43,6 +43,7 @@ public class TCPSocketImpl extends TCPSocket {
 		retransmissionTimer=new Timer("Timer");
 		segmentReceiver=new SegmentReceiver(this);
 		socket=new EnhancedDatagramSocket(ThreadLocalRandom.current().nextInt(1025,65535));
+		socket.setSoTimeout(100);
 		tcpHeader=new TCPHeader();
 		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
 		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
@@ -55,7 +56,8 @@ public class TCPSocketImpl extends TCPSocket {
 		mIp=ip;
 		retransmissionTimer=new Timer("Timer");
 		segmentReceiver=new SegmentReceiver(this);
-		socket=ReceiveSocket;//haminjoori
+		socket=ReceiveSocket;
+		socket.setSoTimeout(100);
 		tcpHeader=new TCPHeader();
 		retransmit=new AtomicBoolean(false);
 	}
@@ -136,7 +138,7 @@ public class TCPSocketImpl extends TCPSocket {
 			catch(Exception e){
 				//its either RanOutOfDataException or IOException
 			}
-			segmentReceiver.receive();
+			segmentReceiver.AckReceive();
 			if(retransmit.getAndSet(false))
 			{
 				int current_size=inFlightSegments.size();
@@ -164,13 +166,16 @@ public class TCPSocketImpl extends TCPSocket {
 	}
     @Override
     public void receive(String pathToFile) throws Exception {
-        throw new RuntimeException("Not implemented!");
+        //az SegmentReceiver.dataSegmentReceive() estefade konid va oon ro ham kamel konid
     }
 	public EnhancedDatagramSocket getSocket(){
 		return socket;
 	}
 	public AtomicInteger getBaseSeqNum(){
 		return baseSeqNum;
+	}
+	public AtomicInteger getReceiveBaseSeqNum(){
+		return receiveBaseSeqNum;
 	}
 	public AtomicInteger getNextToBeSentSeqNum(){
 		return nextToBeSentSeqNum;

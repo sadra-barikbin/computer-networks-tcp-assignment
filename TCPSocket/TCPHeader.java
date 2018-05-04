@@ -20,6 +20,7 @@ class TCPHeader{
 		return res;
 	}
 	public void extractFrom(byte[] packet){
+		unSetAll();
 		sequenceNumber=ByteBuffer.wrap(new byte[]{packet[0],packet[1],
 			packet[2],packet[3]}).getInt();
 		acknowledgeNumber=ByteBuffer.wrap(new byte[]{packet[4],packet[5],
