@@ -11,7 +11,7 @@ class SegmentReceiver {
 		DatagramPacket AckPacket=new DatagramPacket(ackPack,ackPack.length);
 		try{
 			tcpSocketImpl.getSocket().receive(AckPacket);
-		}catch(IOException | SocketTimeoutException e){
+		}catch(IOException  e){// SocketTimeoutException
 			System.out.println(e.getMessage());
 			return;
 		}
@@ -49,7 +49,7 @@ class SegmentReceiver {
 		DatagramPacket dataPacket=new DatagramPacket(dataPack,dataPack.length);
 		try{
 			tcpSocketImpl.getSocket().receive(dataPacket);//aya eenja lazeme check konim ferestandeye baste hamoonie ke bahash dar ertebat hastim?
-		}catch(IOException | SocketTimeoutException e){
+		}catch(IOException  e){// SocketTimeoutException
 			System.out.println(e.getMessage());
 			return;
 		}
