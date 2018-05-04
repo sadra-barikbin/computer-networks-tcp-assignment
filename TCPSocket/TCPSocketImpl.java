@@ -22,6 +22,7 @@ public class TCPSocketImpl extends TCPSocket {
 	private InetAddress mIp;
 	private EnhancedDatagramSocket socket;
 	private FileInputStream file;
+	private FileOutputStream oFile;
 	private TCPHeader tcpHeader;
 	
 	////for Go-Back-N //////////////
@@ -43,7 +44,7 @@ public class TCPSocketImpl extends TCPSocket {
 		retransmissionTimer=new Timer("Timer");
 		segmentReceiver=new SegmentReceiver(this);
 		socket=new EnhancedDatagramSocket(ThreadLocalRandom.current().nextInt(1025,65535));
-		socket.setSoTimeout(100);
+		socket.setSoTimeout(10);
 		tcpHeader=new TCPHeader();
 		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
 		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
@@ -57,7 +58,7 @@ public class TCPSocketImpl extends TCPSocket {
 		retransmissionTimer=new Timer("Timer");
 		segmentReceiver=new SegmentReceiver(this);
 		socket=ReceiveSocket;
-		socket.setSoTimeout(100);
+		socket.setSoTimeout(10);
 		tcpHeader=new TCPHeader();
 		retransmit=new AtomicBoolean(false);
 	}
@@ -120,8 +121,8 @@ public class TCPSocketImpl extends TCPSocket {
 		inFlightSegments=new LinkedList<>();
 		while(true){
 			try{
-				segment newSegment=this.getNewSegment();
-				if(inFlightSegments.size()<windowSize){
+				while(inFlightSegments.size()<windowSize){
+					segment newSegment=this.getNewSegment();
 					newSegment.setSeqNum(this.nextToBeSentSeqNum.intValue());
 					if(nextToBeSentSeqNum.compareAndSet(baseSeqNum.intValue(),baseSeqNum.intValue()))
 						retransmissionTimer.schedule(new RetransmissionTimerTask(this),500);
@@ -137,12 +138,14 @@ public class TCPSocketImpl extends TCPSocket {
 			}
 			catch(Exception e){
 				//its either RanOutOfDataException or IOException
+				if(inFlightSegments.size()==0 && e instanceof RanOutOfDataException)
+					break;
 			}
 			segmentReceiver.AckReceive();
 			if(retransmit.getAndSet(false))
 			{
-				int current_size=inFlightSegments.size();
 				int first_size=inFlightSegments.size();
+				int current_size=first_size;
 				seqNumPlusPacket curr;
 				while(current_size!=0){
 					curr=inFlightSegments.pollFirst();
@@ -154,6 +157,7 @@ public class TCPSocketImpl extends TCPSocket {
 				}
 			}
 		}
+		file.close();
     }
 	public segment getNewSegment() throws Exception{
 			if(file.available()!=0){
@@ -167,6 +171,24 @@ public class TCPSocketImpl extends TCPSocket {
     @Override
     public void receive(String pathToFile) throws Exception {
         //az SegmentReceiver.dataSegmentReceive() estefade konid va oon ro ham kamel konid
+		this.oFile=new FileOutputStream(pathToFile);
+		byte[] segment;
+		byte[] data;
+		while(true){
+			segment=segmentReceiver.dataSegmentReceive();
+			if(segment!=null){
+				data=tcpHeader.extractAndGetOtherData(segment);
+				if(tcpHeader.getSEQ()==this.receiveBaseSeqNum.get()){
+					oFile.write(data);
+					tcpHeader.unSetAll();
+					tcpHeader.setACK();
+					tcpHeader.setAckNum(this.receiveBaseSeqNum.addAndGet(data.length));
+					
+					
+				}
+			}
+		}
+		oFile.close();
     }
 	public EnhancedDatagramSocket getSocket(){
 		return socket;

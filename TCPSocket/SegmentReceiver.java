@@ -44,19 +44,16 @@ class SegmentReceiver {
 			}
 		}
 	}
-	public void dataSegmentReceive(){
+	public byte[] dataSegmentReceive(){
 		byte[] dataPack=new byte[TCPHeader.size];
 		DatagramPacket dataPacket=new DatagramPacket(dataPack,dataPack.length);
 		try{
 			tcpSocketImpl.getSocket().receive(dataPacket);//aya eenja lazeme check konim ferestandeye baste hamoonie ke bahash dar ertebat hastim?
 		}catch(IOException  e){// SocketTimeoutException
 			System.out.println(e.getMessage());
-			return;
+			return null;
 		}
-		tcpHeader.extractFrom(dataPacket.getData());
-		if(tcpHeader.getSEQ()>=tcpSocketImpl.getReceiveBaseSeqNum().get()){
-			
-		}
+		return dataPacket.getData();
 	}
 	public SegmentReceiver(TCPSocketImpl forCallBack){
 		tcpSocketImpl=forCallBack;
