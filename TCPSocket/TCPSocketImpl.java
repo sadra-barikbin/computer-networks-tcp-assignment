@@ -27,7 +27,7 @@ public class TCPSocketImpl extends TCPSocket {
 	private TCPHeader tcpHeader;
 	
 	////for Go-Back-N //////////////
-	private Integer TimeOut=1000;
+	private Integer TimeOut=2000;
 	private int windowSize;
 	private AtomicInteger baseSeqNum;
 	private AtomicInteger receiveBaseSeqNum;
@@ -49,7 +49,7 @@ public class TCPSocketImpl extends TCPSocket {
 		segmentReceiver=new SegmentReceiver(this);
 		int chosenIP=ThreadLocalRandom.current().nextInt(1025,65535);
 		socket=new EnhancedDatagramSocket(chosenIP);
-		socket.setSoTimeout(500);
+		socket.setSoTimeout(10);
 		tcpHeader=new TCPHeader();
 		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
 		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
@@ -62,7 +62,7 @@ public class TCPSocketImpl extends TCPSocket {
 		retransmissionTimer=new Timer("Timer");
 		segmentReceiver=new SegmentReceiver(this);
 		socket=ReceiveSocket;
-		socket.setSoTimeout(500);
+		socket.setSoTimeout(10);
 		tcpHeader=new TCPHeader();
 		connectionCloseTimer=new Timer("timer");
 		baseSeqNum=new AtomicInteger(0);
@@ -72,10 +72,7 @@ public class TCPSocketImpl extends TCPSocket {
 	/*public void setSocket(EnhancedDatagramSocket s){
 		socket=s;
 	}*/
-	private void setupConnection() throws ConnectionRefusedException{
-		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
-		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
-		//synchronize packet
+	private void sendSYN() throws ConnectionRefusedException{
 		tcpHeader.setSYN();
 		tcpHeader.setSEQ(baseSeqNum.intValue());
 		byte[] readydata=tcpHeader.attachTo(new byte[]{});
@@ -86,6 +83,12 @@ public class TCPSocketImpl extends TCPSocket {
 			e.printStackTrace();
 			throw new ConnectionRefusedException();
 		}
+	}
+	private void setupConnection() throws ConnectionRefusedException{
+		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
+		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
+		//synchronize packet
+		this.sendSYN();
 		//synchronize ack packet
 		byte[] synAckData=new byte[9];
 		DatagramPacket synAckPacket=new DatagramPacket(synAckData,synAckData.length);
@@ -97,7 +100,8 @@ public class TCPSocketImpl extends TCPSocket {
 				else
 					break;
 			}catch(IOException e){
-				e.printStackTrace();
+				System.out.println(e.getMessage());
+				this.sendSYN();
 			}
 		}
 		tcpHeader.extractFrom(synAckPacket.getData());
@@ -128,20 +132,23 @@ public class TCPSocketImpl extends TCPSocket {
     public void send(String pathToFile) throws Exception {
 		retransmit=new AtomicBoolean(false);
 		this.file=new FileInputStream(pathToFile);
-		windowSize=1;
+		windowSize=10;
 		inFlightSegments=new LinkedList<>();
 		while(true){
 			try{
 				while(inFlightSegments.size()<windowSize){
 					segment newSegment=this.getNewSegment();
 					newSegment.setSeqNum(this.nextToBeSentSeqNum.intValue());
-					if(nextToBeSentSeqNum.compareAndSet(baseSeqNum.intValue(),baseSeqNum.intValue()))
+					if(nextToBeSentSeqNum.compareAndSet(baseSeqNum.intValue(),baseSeqNum.intValue())){
+						retransmissionTimer=new Timer("tttimer");
 						retransmissionTimer.schedule(new RetransmissionTimerTask(this),TimeOut);
+					}
 					int seqnum=nextToBeSentSeqNum.getAndAdd(newSegment.size());//i supposed the header is excluded
 													   //from segment size
 					byte[] readydata=newSegment.toBytes();
 					DatagramPacket Packet=new DatagramPacket(readydata,readydata.length,mIp,mPort);
 					socket.send(Packet);
+					//System.out.println("segment "+Integer.valueOf(seqnum).toString()+"just has been sent");
 					inFlightSegments.offerLast(new seqNumPlusPacket(Integer.valueOf(seqnum),Packet));//agar enja natoone 
 																									//ezafe kone dade mippare!
 																									//khoobe handle beshe
@@ -150,13 +157,15 @@ public class TCPSocketImpl extends TCPSocket {
 			catch(Exception e){
 				//its either RanOutOfDataException or IOException
 				System.out.println(e.getMessage());
-				e.printStackTrace();
+				//e.printStackTrace();
 				if(inFlightSegments.size()==0 && e instanceof RanOutOfDataException)
 					break;
 			}
+			System.out.println(inFlightSegments.size());
 			segmentReceiver.AckReceive();
 			if(retransmit.getAndSet(false))
 			{
+				System.out.println("Time out! retransmit all");
 				int first_size=inFlightSegments.size();
 				int current_size=first_size;
 				seqNumPlusPacket curr;
@@ -178,7 +187,8 @@ public class TCPSocketImpl extends TCPSocket {
 	public segment getNewSegment() throws Exception{
 			if(file.available()!=0){
 				segment newSegment=new segment();
-				file.read(newSegment.data);
+				
+				//System.out.println(Integer.valueOf(file.read(newSegment.data)).toString()+"bytes of data has just been read from file");
 				return newSegment;
 			}
 			else 
@@ -195,22 +205,27 @@ public class TCPSocketImpl extends TCPSocket {
 		while(true){
 			segment=segmentReceiver.dataSegmentReceive();
 			if(segment!=null){
-				data=tcpHeader.extractAndGetOtherData(segment);
 				tcpHeader.unSetAll();
-				tcpHeader.setACK();
+				data=tcpHeader.extractAndGetOtherData(segment);
+				System.out.println("packet number "+tcpHeader.getSEQ()+"with size "+data.length+"has just been received");
 				if(tcpHeader.getSEQ()==this.receiveBaseSeqNum.get()){
 					oFile.write(data);
 					tcpHeader.setAckNum(this.receiveBaseSeqNum.addAndGet(data.length));
 				}else {
 					tcpHeader.setAckNum(this.receiveBaseSeqNum.get());
+					System.out.println("out of order packet!");
 				}
+				tcpHeader.setACK();
 				try{
 					byte[] ackPack=tcpHeader.attachTo(new byte[]{});
 					socket.send(new DatagramPacket(ackPack,ackPack.length,mIp,mPort));
+					//System.out.println("ack number "+this.receiveBaseSeqNum.get()+"just has been sent");
 				}catch(IOException e){
 					System.out.println("in receive:"+e.getMessage());
 					e.printStackTrace();
 				}
+				connectionCloseTimer.cancel();
+				connectionCloseTimer=new Timer("timer");
 				connectionCloseTimer.schedule(new simpleTimeOutTimerTask(connectionClose),10000);
 			}
 			if(connectionClose.get())
@@ -220,6 +235,7 @@ public class TCPSocketImpl extends TCPSocket {
 		try{
 			connectionCloseTimer.cancel();
 		}catch(Exception e){}
+		System.out.println("receive finished!");
     }
 	public EnhancedDatagramSocket getSocket(){
 		return socket;
@@ -238,7 +254,7 @@ public class TCPSocketImpl extends TCPSocket {
 	}
     @Override
     public void close() throws Exception {
-        throw new RuntimeException("Not implemented!");
+        socket.close();
     }
 	public Integer getTimeOut(){
 		return TimeOut;
@@ -251,8 +267,13 @@ public class TCPSocketImpl extends TCPSocket {
 
     @Override
     public long getWindowSize() {
-        throw new RuntimeException("Not implemented!");
+        return windowSize*1399;
     }
-	public static class RanOutOfDataException extends Exception{}
+	public static class RanOutOfDataException extends Exception{
+		@Override
+		public String getMessage(){
+			return "input data is finished";
+		}
+	}
 	public static class ConnectionRefusedException extends Exception{}
 }
