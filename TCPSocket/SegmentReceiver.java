@@ -12,7 +12,7 @@ class SegmentReceiver {
 		try{
 			tcpSocketImpl.getSocket().receive(AckPacket);
 		}catch(IOException  e){// SocketTimeoutException
-			System.out.println(e.getMessage());
+			System.out.println("at sender in AckReceive:"+e.getMessage());
 			return;
 		}
 		tcpHeader.extractFrom(AckPacket.getData());
@@ -28,7 +28,7 @@ class SegmentReceiver {
 				tcpSocketImpl.getRetransmissionTimer().cancel();
 			else{
 				tcpSocketImpl.getRetransmissionTimer().cancel();
-				tcpSocketImpl.getRetransmissionTimer().schedule(new RetransmissionTimerTask(tcpSocketImpl),500);
+				tcpSocketImpl.getRetransmissionTimer().schedule(new RetransmissionTimerTask(tcpSocketImpl),tcpSocketImpl.getTimeOut());
 			}
 			while(true){
 				if(tcpSocketImpl.inFlightSegments.peekFirst()!=null){
@@ -50,7 +50,7 @@ class SegmentReceiver {
 		try{
 			tcpSocketImpl.getSocket().receive(dataPacket);//aya eenja lazeme check konim ferestandeye baste hamoonie ke bahash dar ertebat hastim?
 		}catch(IOException  e){// SocketTimeoutException
-			System.out.println(e.getMessage());
+			System.out.println("at receiver in dataSegmentReceive : "+e.getMessage());
 			return null;
 		}
 		return dataPacket.getData();
