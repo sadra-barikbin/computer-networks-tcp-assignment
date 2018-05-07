@@ -3,7 +3,6 @@ class segment {
 	public byte[] data;
 	TCPHeader tcpHeader;
 	public segment(){
-		data=new byte[1408-TCPHeader.size];
 		tcpHeader=new TCPHeader();
 	}
 	public byte[] toBytes(){

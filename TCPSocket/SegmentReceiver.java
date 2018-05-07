@@ -17,7 +17,7 @@ class SegmentReceiver {
 			return;
 		}
 		tcpHeader.extractFrom(AckPacket.getData());
-		System.out.println("ack number "+tcpHeader.getAckNum()+" has just been received");
+		//System.out.println("ack number "+tcpHeader.getAckNum()+" has just been received");
 		if(!( tcpHeader.getAckNum() <= tcpSocketImpl.getBaseSeqNum().get()))
 		{
 			tcpSocketImpl.getBaseSeqNum().getAndSet(tcpHeader.getAckNum());//i supposed receiver sets
@@ -29,7 +29,10 @@ class SegmentReceiver {
 			if(tcpSocketImpl.getBaseSeqNum().intValue()==tcpSocketImpl.getNextToBeSentSeqNum().intValue())
 				tcpSocketImpl.getRetransmissionTimer().cancel();
 			else{
-				//tcpSocketImpl.getRetransmissionTimer().cancel();
+				try{
+					tcpSocketImpl.getRetransmissionTimer().cancel();
+				}catch(Exception e){}
+				tcpSocketImpl.setRetransmissionTimer(new Timer("tgtimer"));
 				tcpSocketImpl.getRetransmissionTimer().schedule(new RetransmissionTimerTask(tcpSocketImpl),tcpSocketImpl.getTimeOut());
 			}
 			while(true){

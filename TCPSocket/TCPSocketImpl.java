@@ -49,7 +49,7 @@ public class TCPSocketImpl extends TCPSocket {
 		segmentReceiver=new SegmentReceiver(this);
 		int chosenIP=ThreadLocalRandom.current().nextInt(1025,65535);
 		socket=new EnhancedDatagramSocket(chosenIP);
-		socket.setSoTimeout(10);
+		socket.setSoTimeout(100);
 		tcpHeader=new TCPHeader();
 		baseSeqNum=new AtomicInteger(ThreadLocalRandom.current().nextInt(0,Integer.MAX_VALUE));
 		nextToBeSentSeqNum=new AtomicInteger(baseSeqNum.intValue()+1);
@@ -62,7 +62,7 @@ public class TCPSocketImpl extends TCPSocket {
 		retransmissionTimer=new Timer("Timer");
 		segmentReceiver=new SegmentReceiver(this);
 		socket=ReceiveSocket;
-		socket.setSoTimeout(10);
+		socket.setSoTimeout(100);
 		tcpHeader=new TCPHeader();
 		connectionCloseTimer=new Timer("timer");
 		baseSeqNum=new AtomicInteger(0);
@@ -140,6 +140,10 @@ public class TCPSocketImpl extends TCPSocket {
 					segment newSegment=this.getNewSegment();
 					newSegment.setSeqNum(this.nextToBeSentSeqNum.intValue());
 					if(nextToBeSentSeqNum.compareAndSet(baseSeqNum.intValue(),baseSeqNum.intValue())){
+						try{
+							retransmissionTimer.cancel();
+						}
+						catch(Exception e){}
 						retransmissionTimer=new Timer("tttimer");
 						retransmissionTimer.schedule(new RetransmissionTimerTask(this),TimeOut);
 					}
@@ -161,7 +165,7 @@ public class TCPSocketImpl extends TCPSocket {
 				if(inFlightSegments.size()==0 && e instanceof RanOutOfDataException)
 					break;
 			}
-			System.out.println(inFlightSegments.size());
+			//System.out.println(inFlightSegments.size());
 			segmentReceiver.AckReceive();
 			if(retransmit.getAndSet(false))
 			{
@@ -173,7 +177,13 @@ public class TCPSocketImpl extends TCPSocket {
 					curr=inFlightSegments.pollFirst();
 					socket.send(curr.packet);
 					if(first_size==current_size)
+					{
+						try{
+							retransmissionTimer.cancel();
+						}catch(Exception e){}
+						retransmissionTimer=new Timer("tttimer");
 						retransmissionTimer.schedule(new RetransmissionTimerTask(this),TimeOut);
+					}
 					inFlightSegments.offerLast(curr);
 					current_size--;
 				}
@@ -187,8 +197,12 @@ public class TCPSocketImpl extends TCPSocket {
 	public segment getNewSegment() throws Exception{
 			if(file.available()!=0){
 				segment newSegment=new segment();
-				
-				//System.out.println(Integer.valueOf(file.read(newSegment.data)).toString()+"bytes of data has just been read from file");
+				byte[] data=new byte[1408-TCPHeader.size];
+				int bytesRead=file.read(data);
+				byte[] truncated_data=new byte[bytesRead];
+				System.arraycopy(data,0,truncated_data,0,bytesRead);
+				newSegment.data=truncated_data;
+				//System.out.println(Integer.valueOf().toString()+"bytes of data has just been read from file");
 				return newSegment;
 			}
 			else 
@@ -252,6 +266,9 @@ public class TCPSocketImpl extends TCPSocket {
 	public Timer getRetransmissionTimer(){
 		return retransmissionTimer;
 	}
+	public void setRetransmissionTimer(Timer t){
+		retransmissionTimer=t;
+	}
     @Override
     public void close() throws Exception {
         socket.close();
@@ -267,7 +284,7 @@ public class TCPSocketImpl extends TCPSocket {
 
     @Override
     public long getWindowSize() {
-        return windowSize*1399;
+        return windowSize*(1408*TCPHeader.size);
     }
 	public static class RanOutOfDataException extends Exception{
 		@Override
