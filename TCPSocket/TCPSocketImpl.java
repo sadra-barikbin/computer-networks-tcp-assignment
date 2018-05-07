@@ -90,7 +90,7 @@ public class TCPSocketImpl extends TCPSocket {
 		//synchronize packet
 		this.sendSYN();
 		//synchronize ack packet
-		byte[] synAckData=new byte[9];
+		byte[] synAckData=new byte[TCPHeader.size];
 		DatagramPacket synAckPacket=new DatagramPacket(synAckData,synAckData.length);
 		while(true){
 			try{
@@ -201,7 +201,7 @@ public class TCPSocketImpl extends TCPSocket {
 				int bytesRead=file.read(data);
 				byte[] truncated_data=new byte[bytesRead];
 				System.arraycopy(data,0,truncated_data,0,bytesRead);
-				newSegment.data=truncated_data;
+				newSegment.setData(truncated_data);
 				//System.out.println(Integer.valueOf().toString()+"bytes of data has just been read from file");
 				return newSegment;
 			}

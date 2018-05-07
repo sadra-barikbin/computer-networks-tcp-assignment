@@ -14,5 +14,9 @@ class segment {
 	public int size(){
 		return data.length;
 	}
+	public void setData(byte[] d){
+		data=d;
+		tcpHeader.payload_size=Integer.valueOf(d.length).shortValue();
+	}
 }
 		

@@ -21,7 +21,7 @@ public class TCPServerSocketImpl extends TCPServerSocket {
 		listenTimeOut=new AtomicBoolean(false);
 		socket=new EnhancedDatagramSocket(port);
 		portToListen=port;
-		new Timer("for listen timeout").schedule(new simpleTimeOutTimerTask(listenTimeOut),3000);
+		new Timer("for listen timeout").schedule(new simpleTimeOutTimerTask(listenTimeOut),7000);
 		socket.setSoTimeout(100);
     }
 
@@ -31,7 +31,7 @@ public class TCPServerSocketImpl extends TCPServerSocket {
 		TCPSocketImpl client_sock=null;
 		while(!listenTimeOut.get()){
 			//receiving SYN
-			byte[] synData=new byte[9];
+			byte[] synData=new byte[TCPHeader.size];
 			DatagramPacket synPacket=new DatagramPacket(synData,synData.length);
 			try{
 				socket.receive(synPacket);
@@ -49,7 +49,7 @@ public class TCPServerSocketImpl extends TCPServerSocket {
 			//sending SYN ACK
 			this.sendSYN_ACK();
 			//receiving final ack 
-			byte[] AckData=new byte[9];
+			byte[] AckData=new byte[TCPHeader.size];
 			DatagramPacket finalAckPacket=new DatagramPacket(AckData,AckData.length);
 			while(true){
 				try{
